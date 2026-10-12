@@ -28,6 +28,8 @@ function trapPos(x, a) { // normalized distance for trapezoid speed profile
   if (x < 1 - a) return 0.5 * v * a + v * (x - a);
   return 1 - 0.5 * v * (1 - x) * (1 - x) / a;
 }
+// flap lever moves in detents; each transition takes ~3 s (like the real thing)
+function stages(tau, list, from) { let v = from; for (const [t0, val] of list) { v = lerp(v, val, smooth(t0, t0 + 3, tau)); } return v; }
 function trapVel(x, a) { const v = 1 / (1 - a); return x < a ? v * x / a : x < 1 - a ? v : v * (1 - x) / a; }
 
 export function buildFlight(leg, { longCruise = false } = {}) {
@@ -68,15 +70,15 @@ export function buildFlight(leg, { longCruise = false } = {}) {
     s.yaw = unwrap(Math.atan2(-tg.x, -tg.z), s.yaw);
     s.speed = L1 / T1 * trapVel(x, 0.16);
     s.n1 = 22 + 7 * pulse(tau, 0, 1.5, 3, 6);
-    s.flaps = 0.5 * smooth(10, 16, tau);
+    s.flaps = stages(tau, [[10, 0.35]], 0);
   });
 
   // 4. Takeoff roll
   phase('takeoff', 'Takeoff roll');
   s.speed = 0;
   runUntil(() => s.speed >= 74, (tau) => {
-    s.n1 = tau < 3 ? 22 : tau < 5.5 ? lerp(22, 48, smooth(3, 5.5, tau)) : lerp(48, 93, smooth(5.5, 9, tau));
-    const acc = 2.85 * smooth(5.5, 8.5, tau);
+    s.n1 = tau < 3 ? 22 : tau < 6 ? lerp(22, 48, smooth(3, 6, tau)) : lerp(48, 93, smooth(6, 10, tau));
+    const acc = 2.9 * smooth(5, 10, tau) * (1 - 0.18 * clamp(s.speed / 80, 0, 1));
     s.speed += acc * dt; move();
   }, 80);
 
@@ -84,8 +86,8 @@ export function buildFlight(leg, { longCruise = false } = {}) {
   phase('liftoff', 'Liftoff & initial climb');
   let vs = 0;
   run(25, (tau) => {
-    s.pitch = D2R * Math.min(8, 2.6 * tau);
-    if (s.pitch > 5 * D2R) vs = Math.min(13, vs + 4.5 * dt);
+    s.pitch = D2R * (Math.min(13, 13 * ss(tau / 4.6)) - 2 * smooth(12, 25, tau));
+    if (s.pitch > 7 * D2R) vs = Math.min(14, vs + 4.0 * dt);
     s.alt += vs * dt; s.ground = s.alt < 0.05 ? 1 : 0;
     s.speed = Math.min(92, s.speed + (tau < 3 ? 2.2 : 1.0) * dt);
     s.n1 = lerp(93, 86, smooth(17, 21, tau));
@@ -99,11 +101,11 @@ export function buildFlight(leg, { longCruise = false } = {}) {
   run(TC, (tau, x) => {
     s.alt = A0 + 13 * TC * x * (1 - x) * (1 - x) + (CR - A0) * ss(x);
     s.speed = 92 + 140 * ss(x);
-    s.pitch = D2R * (8 - 5 * ss(x));
-    s.flaps = 0.5 * (1 - smooth(4, 12, tau));
-    const p = pulse(tau, 24, 28, 42, 46);
-    s.roll = Math.sign(turn1) * 15 * D2R * p;
-    s.yaw += turn1 / 18 * p * dt;
+    s.pitch = D2R * (11 - 7.5 * ss(x));
+    s.flaps = stages(tau, [[4, 0.15], [13, 0]], 0.35);
+    const p1 = pulse(tau, 3, 7.5, 15, 19.5), p2 = pulse(tau, 30, 34.5, 42, 46.5);
+    s.roll = Math.sign(turn1) * D2R * (20 * p1 + 17 * p2);
+    s.yaw += (turn1 * 0.55 / 11.5 * p1 + turn1 * 0.45 / 11.5 * p2) * dt;
     s.n1 = lerp(86, 82, x);
     move();
   });
@@ -125,13 +127,13 @@ export function buildFlight(leg, { longCruise = false } = {}) {
   run(TD, (tau, x) => {
     s.alt = D0 + (200 - D0) * ss(x) + 4.5 * TD * x * x * (1 - x);
     s.speed = 230 - 158 * ss(x);
-    s.pitch = D2R * (tau < 34 ? lerp(2.5, 0.5, smooth(0, 8, tau)) : lerp(0.5, 2.5, smooth(36, 50, tau)));
+    s.pitch = D2R * (tau < 34 ? lerp(2.5, -0.5, smooth(0, 8, tau)) : lerp(-0.5, 2.5, smooth(36, 50, tau)));
     s.spoil = 0.35 * pulse(tau, 5, 8, 18, 22);
-    s.flaps = 0.5 * smooth(30, 36, tau) + 0.3 * smooth(44, 50, tau);
+    s.flaps = stages(tau, [[27, 0.15], [35, 0.35], [44, 0.6]], 0);
     s.gear = smooth(41, 47, tau);
     s.n1 = tau < 38 ? lerp(76, 32, smooth(0, 6, tau)) : lerp(32, 55, smooth(38, 48, tau));
     const p = pulse(tau, 12, 16, 30, 34);
-    s.roll = Math.sign(turn2) * 15 * D2R * p;
+    s.roll = Math.sign(turn2) * 18 * D2R * p;
     s.yaw += turn2 / 18 * p * dt;
     move();
   });
@@ -140,7 +142,7 @@ export function buildFlight(leg, { longCruise = false } = {}) {
   phase('approach', 'Final approach');
   runUntil(() => s.alt <= 0, (tau) => {
     s.speed = lerp(72, 69, smooth(0, 30, tau));
-    s.flaps = 0.8 + 0.2 * smooth(0, 5, tau); s.gear = 1; s.roll = 0;
+    s.flaps = stages(tau, [[1, 1.0]], 0.6); s.gear = 1; s.roll = 0;
     if (s.alt > 14) { vs = -4.5; s.pitch = 2.5 * D2R; s.n1 = 55; }
     else { vs = -Math.max(0.9, 0.32 * s.alt); s.pitch = D2R * lerp(4.6, 2.5, s.alt / 14); s.n1 = lerp(30, 55, s.alt / 14); }
     s.alt = Math.max(0, s.alt + vs * dt); move();
@@ -189,7 +191,7 @@ export function buildFlight(leg, { longCruise = false } = {}) {
     s.x = p.x; s.z = p.z; s.speed = v; s.pitch = 0;
     s.yaw = unwrap(Math.atan2(-tg.x, -tg.z), s.yaw);
     s.spoil = 1 - smooth(2, 5, tau); s.rev = 0;
-    s.flaps = 1 - smooth(3, 12, tau);
+    s.flaps = stages(tau, [[4, 0]], 1);
     s.n1 = 24;
   }, 120);
 
@@ -228,7 +230,7 @@ export function buildEvents(fl, opts) {
   const leg = fl.leg, P = fl.phaseStart, ev = [];
   const add = (t, e) => { if (t != null) ev.push({ t, ...e }); };
   const cap = (t, who, text, extra = {}) => add(t, { who, text, ...extra });
-  const to = leg.toCity;
+  const to = leg.toCity, night = opts.tod === 2, greet = opts.tod >= 1 ? 'evening' : leg.greeting;
   const b = P('board'), pu = P('push'), tx = P('taxi'), to0 = P('takeoff'), lo = P('liftoff'), cl = P('climb'), cr = P('cruise'),
     de = P('descent'), ap = P('approach'), la = P('landing'), ti = P('taxiin'), ga = P('gate');
 
@@ -238,13 +240,15 @@ export function buildEvents(fl, opts) {
   add(b + 11.5, { snd: 'ding', sign: true });
   cap(b + 12, 'tip', 'The seatbelt sign just came on with a chime. Chimes are routine signals for the crew - you will hear several.');
 
-  cap(pu + 1, 'captain', `Good ${leg.greeting}, folks, this is your captain. Flight time to ${to} is about ${leg.realMin} minutes, and we're expecting a smooth ride. Sit back and relax.`);
+  cap(pu + 1, 'captain', `Good ${greet}, folks, this is your captain. Flight time to ${to} is about ${leg.realMin} minutes, and we're expecting a smooth ride. Sit back and relax.`);
   cap(pu + 9, 'tip', 'That rising whine is the engines starting up. Completely normal.');
 
   cap(tx + 2, 'crew', 'Flight attendants, prepare for departure.');
   add(tx + 11, { snd: 'flaps' });
   cap(tx + 9, 'crew', 'Please make sure your seatbelt is fastened low and tight, your seat back is upright and your tray table is stowed. Take a moment to locate your nearest exit.');
-  cap(tx + 23, 'tip', 'Feel the small bumps? That is just the wheels rolling over joints in the pavement.');
+  if (night) cap(tx + 19, 'crew', "We'll be dimming the cabin lights for departure. If you'd like to read, your reading light is in the panel above you.");
+  add(tx + 21.5, { snd: 'ding' });
+  cap(tx + 27.5, 'tip', 'Feel the small bumps? That is just the wheels rolling over joints in the pavement.');
   cap(tx + 32, 'captain', 'Flight attendants, please be seated for departure.');
 
   cap(to0 + 1, 'tip', 'Lined up on the runway. Try a slow breath out as the engines spool up.');
@@ -256,9 +260,11 @@ export function buildEvents(fl, opts) {
   cap(lo + 18, 'tip', 'The engines just got a little quieter. That is the planned power reduction for the climb.');
 
   add(cl + 4, { snd: 'flaps' });
-  cap(cl + 4.5, 'tip', 'The wing panels sliding back in are the flaps retracting as we speed up.');
+  add(cl + 13, { snd: 'flaps' });
+  cap(cl + 13.5, 'tip', 'The wing panels sliding back in are the flaps retracting in stages as we speed up.');
   if (fl.cloudIn) cap(fl.cloudIn - 2, 'tip', 'Climbing into the clouds. The view turns white for a little while and it may feel slightly bumpy - clouds are just water vapor.');
-  cap(cl + 25, 'tip', 'We are making a gentle banked turn. The tilted horizon is a normal, comfortable turn.');
+  cap(cl + 5, 'tip', 'We are making a gentle banked turn. The tilted horizon outside is a normal, comfortable turn - the cabin stays steady.');
+  if (night) cap(cl + 47, 'tip', 'Look for the clusters of city lights below. Every one of them is a town carrying on as usual.');
   if (fl.ft10k) add(fl.ft10k, { snd: 'ding' });
 
   cap(cr + 2, 'captain', `Ladies and gentlemen, we've reached our cruising altitude of ${leg.cruiseFt.toLocaleString('en-US')} feet. It's nice and smooth up here - enjoy the view.`, { snd: 'bingbong' });
@@ -287,7 +293,7 @@ export function buildEvents(fl, opts) {
   add(de + 41, { snd: 'gearDown' });
   cap(de + 43, 'tip', 'That rumble and thump is the landing gear coming down - a good sound to hear.');
 
-  cap(ap + 2, 'crew', 'Flight attendants, please take your seats for landing.');
+  cap(ap + 2, 'crew', night ? 'We have dimmed the cabin lights for landing. Flight attendants, please take your seats.' : 'Flight attendants, please take your seats for landing.');
   cap(ap + 18, 'tip', 'Final approach. Breathe in for four... and out for six...');
   add(la, { snd: 'touchdown' });
   cap(la + 3, 'tip', "That roar is reverse thrust helping us slow down. We're on the ground - well done.");

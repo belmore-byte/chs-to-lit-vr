@@ -55,16 +55,6 @@ export function groundTexture() {
   const forests = [];
   for (let i = 0; i < 70; i++) { const cx = r() * S, cy = r() * S, n = 8 + r() * 30, sp = 15 + r() * 50; const pts = []; for (let k = 0; k < n; k++) pts.push([cx + (r() - 0.5) * sp * 2, cy + (r() - 0.5) * sp * 2, 5 + r() * 16]); forests.push(pts); }
   wrap(() => { for (const f of forests) for (const [x, y, rad] of f) { ctx.fillStyle = r() < 0.5 ? '#3f5b31' : '#466338'; ctx.beginPath(); ctx.arc(x, y, rad, 0, 7); ctx.fill(); } });
-  // lakes
-  const lakes = []; for (let i = 0; i < 7; i++) lakes.push([r() * S, r() * S, 8 + r() * 26, 5 + r() * 14, r() * 3]);
-  wrap(() => { ctx.fillStyle = '#4f6e7c'; for (const [x, y, a, b, rot] of lakes) { ctx.beginPath(); ctx.ellipse(x, y, a, b, rot, 0, 7); ctx.fill(); } });
-  // river (periodic so it tiles)
-  const rx0 = r() * S;
-  wrap(() => {
-    ctx.strokeStyle = '#4c6b78'; ctx.lineWidth = 6; ctx.lineJoin = 'round'; ctx.beginPath();
-    for (let y = 0; y <= S; y += 8) { const x = rx0 + 140 * Math.sin(2 * Math.PI * y / S * 2) + 50 * Math.sin(2 * Math.PI * y / S * 5 + 1); y === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
-    ctx.stroke();
-  });
   // roads (periodic wobble)
   const roads = []; for (let i = 0; i < 9; i++) roads.push({ horiz: i % 2 === 0, p: r() * S, a: 20 + r() * 60, f: 1 + Math.floor(r() * 3), ph: r() * 6, w: i < 2 ? 4 : 2.2 });
   wrap(() => {
@@ -72,15 +62,6 @@ export function groundTexture() {
       ctx.strokeStyle = rd.w > 3 ? '#a3a39b' : '#9b9a8f'; ctx.lineWidth = rd.w; ctx.beginPath();
       for (let q = 0; q <= S; q += 16) { const o = rd.p + rd.a * Math.sin(2 * Math.PI * q / S * rd.f + rd.ph); rd.horiz ? (q ? ctx.lineTo(q, o) : ctx.moveTo(q, o)) : (q ? ctx.lineTo(o, q) : ctx.moveTo(o, q)); }
       ctx.stroke();
-    }
-  });
-  // towns
-  const towns = [];
-  for (let i = 0; i < 26; i++) { const cx = r() * S, cy = r() * S, n = 20 + r() * 90, rad = 18 + r() * 45, b = []; for (let k = 0; k < n; k++) { const a = r() * 6.28, d = Math.sqrt(r()) * rad; b.push([cx + Math.cos(a) * d, cy + Math.sin(a) * d, 2 + r() * 5, ['#b9b6ad', '#c9c4b8', '#a5a29c', '#9c7f6c', '#d8d6d0', '#8f8c86'][Math.floor(r() * 6)]]); } towns.push([cx, cy, rad, b]); }
-  wrap(() => {
-    for (const [cx, cy, rad, b] of towns) {
-      ctx.fillStyle = 'rgba(150,150,140,0.35)'; ctx.beginPath(); ctx.arc(cx, cy, rad * 1.05, 0, 7); ctx.fill();
-      for (const [x, y, s, col] of b) { ctx.fillStyle = col; ctx.fillRect(x, y, s, s * 0.8); }
     }
   });
   noise(ctx, S, S, 16, r, true);
@@ -177,31 +158,35 @@ export function buildingTexture() {
   return toTex(c);
 }
 
-// Soft cumulus puffs: 2x2 atlas, white tops, grey bases, alpha falloff
+// Soft cumulus puffs: 2x2 atlas, billowy multi-scale lobes, lit tops, grey self-shadowed bases, feathered edges
 export function cloudAtlas() {
-  const S = 512, [c, ctx] = mkCanvas(S, S), r = mulberry32(77);
+  const S = 1024, H = 512, [c, ctx] = mkCanvas(S, S), r = mulberry32(77);
   for (let v = 0; v < 4; v++) {
-    const ox = (v % 2) * 256, oy = Math.floor(v / 2) * 256;
-    const [c2, x2] = mkCanvas(256, 256);
-    const n = 16 + Math.floor(r() * 10);
-    for (let i = 0; i < n; i++) {
-      const a = r() * 6.28, d = Math.pow(r(), 0.7) * 62;
-      const x = 128 + Math.cos(a) * d * 1.25, y = 136 + Math.sin(a) * d * 0.6 - (r() * 18);
-      const rad = 26 + r() * 40;
-      const g = x2.createRadialGradient(x, y, 0, x, y, rad);
-      g.addColorStop(0, 'rgba(255,255,255,0.85)'); g.addColorStop(0.55, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    const ox = (v % 2) * H, oy = Math.floor(v / 2) * H;
+    const [c2, x2] = mkCanvas(H, H);
+    const lobes = [];
+    const n = 9 + Math.floor(r() * 6);
+    for (let i = 0; i < n; i++) { const a = r() * 6.28, d = Math.pow(r(), 0.8) * 120; lobes.push([256 + Math.cos(a) * d * 1.3, 290 + Math.sin(a) * d * 0.45 - r() * 40, 55 + r() * 70]); }
+    // big soft body then smaller cauliflower detail on the upper rim
+    for (const [x, y, rad] of lobes) {
+      const g = x2.createRadialGradient(x, y, 0, x, y, rad); g.addColorStop(0, 'rgba(255,255,255,0.6)'); g.addColorStop(0.6, 'rgba(255,255,255,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
       x2.fillStyle = g; x2.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+      for (let k = 0; k < 7; k++) {
+        const a = -Math.PI * (0.1 + 0.8 * r()), d = rad * (0.55 + r() * 0.35), rr = rad * (0.22 + r() * 0.25), px = x + Math.cos(a) * d, py = y + Math.sin(a) * d;
+        const g2 = x2.createRadialGradient(px, py, 0, px, py, rr); g2.addColorStop(0, 'rgba(255,255,255,0.45)'); g2.addColorStop(1, 'rgba(255,255,255,0)');
+        x2.fillStyle = g2; x2.fillRect(px - rr, py - rr, rr * 2, rr * 2);
+      }
     }
     // flatter base
     x2.globalCompositeOperation = 'destination-out';
-    const gb = x2.createLinearGradient(0, 170, 0, 215); gb.addColorStop(0, 'rgba(0,0,0,0)'); gb.addColorStop(1, 'rgba(0,0,0,1)');
-    x2.fillStyle = gb; x2.fillRect(0, 170, 256, 86);
-    // shading: lit tops, grey undersides
+    const gb = x2.createLinearGradient(0, 330, 0, 420); gb.addColorStop(0, 'rgba(0,0,0,0)'); gb.addColorStop(1, 'rgba(0,0,0,1)');
+    x2.fillStyle = gb; x2.fillRect(0, 330, H, 182);
+    // shading: lit tops, grey undersides, a little internal self-shadow (red channel = light amount)
     x2.globalCompositeOperation = 'source-atop';
-    const gs = x2.createLinearGradient(0, 60, 0, 210); gs.addColorStop(0, 'rgba(255,255,255,1)'); gs.addColorStop(0.55, 'rgba(236,240,245,1)'); gs.addColorStop(1, 'rgba(160,170,184,1)');
-    x2.fillStyle = gs; x2.fillRect(0, 0, 256, 256);
-    // keep 1px gutter between atlas cells
-    ctx.drawImage(c2, 2, 2, 252, 252, ox + 2, oy + 2, 252, 252);
+    const gs = x2.createLinearGradient(0, 130, 0, 410); gs.addColorStop(0, 'rgb(255,255,255)'); gs.addColorStop(0.45, 'rgb(232,236,242)'); gs.addColorStop(1, 'rgb(120,130,148)');
+    x2.fillStyle = gs; x2.fillRect(0, 0, H, H);
+    for (const [x, y, rad] of lobes) { const g = x2.createRadialGradient(x, y + rad * 0.45, 0, x, y + rad * 0.45, rad * 0.8); g.addColorStop(0, 'rgba(110,120,140,0.28)'); g.addColorStop(1, 'rgba(110,120,140,0)'); x2.fillStyle = g; x2.fillRect(x - rad, y - rad * 0.4, rad * 2, rad * 2); }
+    ctx.drawImage(c2, 3, 3, H - 6, H - 6, ox + 3, oy + 3, H - 6, H - 6);
   }
   const t = toTex(c, { wrap: false }); t.generateMipmaps = true; return t;
 }
@@ -287,4 +272,46 @@ export function bulkheadTexture(back = false) {
 }
 export function roundRect(ctx, x, y, w, h, rr) {
   ctx.beginPath(); ctx.moveTo(x + rr, y); ctx.arcTo(x + w, y, x + w, y + h, rr); ctx.arcTo(x + w, y + h, x, y + h, rr); ctx.arcTo(x, y + h, x, y, rr); ctx.arcTo(x, y, x + w, y, rr); ctx.closePath();
+}
+
+// Night: lit windows (emissive maps) for the terminal and town buildings
+export function terminalNightTexture() {
+  const W = 512, H = 256, [c, ctx] = mkCanvas(W, H), r = mulberry32(22);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  const g = ctx.createLinearGradient(0, 70, 0, 190); g.addColorStop(0, '#d9b98a'); g.addColorStop(0.5, '#ffe2b0'); g.addColorStop(1, '#b89466');
+  ctx.fillStyle = g; ctx.fillRect(0, 70, W, 120);
+  ctx.fillStyle = '#000'; for (let x = 0; x < W; x += 32) ctx.fillRect(x, 70, 3, 120);
+  ctx.fillRect(0, 128, W, 3);
+  for (let i = 0; i < 30; i++) { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(r() * W, 70 + r() * 100, 4 + r() * 10, 10 + r() * 20); }
+  return toTex(c);
+}
+export function buildingNightTexture() {
+  const W = 128, H = 128, [c, ctx] = mkCanvas(W, H), r = mulberry32(41);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  for (let y = 8; y < H; y += 16) for (let x = 6; x < W; x += 14) { const v = r(); if (v < 0.45) { ctx.fillStyle = v < 0.1 ? '#cfe0ff' : '#ffd79a'; ctx.fillRect(x, y, 8, 9); } }
+  return toTex(c);
+}
+// soft round glow sprite (for nav lights, reading lights, light pools)
+export function glowTexture() {
+  const S = 128, [c, ctx] = mkCanvas(S, S);
+  const g = ctx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.18, 'rgba(255,255,255,0.55)'); g.addColorStop(0.5, 'rgba(255,255,255,0.12)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+  return toTex(c, { wrap: false });
+}
+// fabric weave (left half) + plain white (right half) so one texture serves upholstered + plastic seat parts
+export function seatFabricTexture() {
+  const W = 512, H = 256, [c, ctx] = mkCanvas(W, H), r = mulberry32(17);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#d8d8d8'; ctx.fillRect(0, 0, 256, 256);
+  for (let y = 0; y < 256; y += 4) for (let x = 0; x < 256; x += 4) { const v = 200 + ((x / 4 + y / 4) % 2 ? 22 : -6) + (r() - 0.5) * 26; ctx.fillStyle = `rgb(${v},${v},${v + 4})`; ctx.fillRect(x, y, 4, 4); }
+  for (let i = 0; i < 40; i++) { ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(r() * 256, r() * 256, 30 + r() * 60, 2); }
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(256, 0, 256, 256);
+  return toTex(c, { aniso: 8 });
+}
+export function wallSpeckleTexture() {
+  const S = 256, [c, ctx] = mkCanvas(S, S), r = mulberry32(19);
+  ctx.fillStyle = '#f4f4f4'; ctx.fillRect(0, 0, S, S);
+  noise(ctx, S, S, 10, r);
+  return toTex(c, { aniso: 8 });
 }

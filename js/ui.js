@@ -19,9 +19,11 @@ const FONT = 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
 
 export class Menu extends CanvasPanel {
   constructor(items) {
-    super(0.50, 0.56, 900, 1008);
+    const cols = 3, rowsN = Math.ceil(items.length / cols);
+    const bw = 380, bh = 124, gx = 18, gy = 18, x0 = 36, y0 = 140;
+    const PW = x0 * 2 + cols * bw + (cols - 1) * gx, PH = y0 + rowsN * (bh + gy) + 20;
+    super(0.62 * PW / 1248, 0.62 * PH / 1248, PW, PH);
     this.items = items; this.hover = -1; this.rects = [];
-    const cols = 2, x0 = 40, y0 = 150, bw = 400, bh = 132, gx = 20, gy = 22;
     items.forEach((it, i) => { const c = i % cols, r = Math.floor(i / cols); this.rects.push([x0 + c * (bw + gx), y0 + r * (bh + gy), bw, bh]); });
     this.draw();
   }
@@ -42,8 +44,8 @@ export class Menu extends CanvasPanel {
       g.fillStyle = '#ffffff'; g.textAlign = 'center';
       const lab = typeof it.label === 'function' ? it.label() : it.label;
       const [l1, l2] = lab.split('\n');
-      if (l2) { g.font = `400 30px ${FONT}`; g.fillStyle = '#a9bdd6'; g.fillText(l1, x + w / 2, y + h / 2 - 22); g.font = `600 42px ${FONT}`; g.fillStyle = '#fff'; g.fillText(l2, x + w / 2, y + h / 2 + 22); }
-      else { g.font = `600 42px ${FONT}`; g.fillText(l1, x + w / 2, y + h / 2 + 2); }
+      if (l2) { g.font = `400 29px ${FONT}`; g.fillStyle = '#a9bdd6'; g.fillText(l1, x + w / 2, y + h / 2 - 22); g.font = `600 38px ${FONT}`; g.fillStyle = '#fff'; g.fillText(l2, x + w / 2, y + h / 2 + 21); }
+      else { g.font = `600 38px ${FONT}`; g.fillText(l1, x + w / 2, y + h / 2 + 2); }
     });
     this.commit();
   }
@@ -85,8 +87,8 @@ export class Caption extends CanvasPanel {
   show(who, text, now) {
     const g = this.ctx, W = this.pw, H = this.ph;
     g.clearRect(0, 0, W, H);
-    const col = who === 'captain' ? '#ffcf70' : who === 'crew' ? '#8fd3ff' : who === 'tip' ? '#9ef0b5' : '#ffffff';
-    const label = who === 'captain' ? 'CAPTAIN' : who === 'crew' ? 'CABIN CREW' : who === 'tip' ? 'CALM TIP' : '';
+    const col = { captain: '#ffcf70', crew: '#8fd3ff', tip: '#9ef0b5', officer: '#c9b8ff', agent: '#8fd3ff', pa: '#ffd9a0' }[who] || '#ffffff';
+    const label = { captain: 'CAPTAIN', crew: 'CABIN CREW', tip: 'CALM TIP', officer: 'SECURITY OFFICER', agent: 'GATE AGENT', pa: 'AIRPORT ANNOUNCEMENT' }[who] || '';
     g.fillStyle = 'rgba(8,12,20,0.80)'; roundRect(g, 4, 4, W - 8, H - 8, 30); g.fill();
     g.fillStyle = col; g.fillRect(4 + 18, 24, 8, H - 48);
     g.font = `700 30px ${FONT}`; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText(label, 50, 22);
@@ -148,4 +150,39 @@ export class Card extends CanvasPanel {
     if (foot) { g.font = `600 34px ${FONT}`; g.fillStyle = '#9ef0b5'; g.fillText(foot, W / 2, H - 70); }
     this.commit();
   }
+}
+
+// Step prompt for the airport section: title, instruction and an optional big button
+export class Prompt extends CanvasPanel {
+  constructor() { super(0.62, 0.25, 1000, 404, { order: 905, depthTest: false }); this.mesh.visible = false; this.btn = null; this.hover = false; this.data = null; }
+  show(p) {
+    this.data = p; this.mesh.visible = !!p; if (!p) return;
+    this.draw();
+  }
+  draw() {
+    const p = this.data; if (!p) return;
+    const g = this.ctx, W = this.pw, H = this.ph;
+    g.clearRect(0, 0, W, H);
+    g.fillStyle = 'rgba(12,20,34,0.92)'; roundRect(g, 4, 4, W - 8, H - 8, 34); g.fill();
+    g.strokeStyle = 'rgba(140,200,255,0.55)'; g.lineWidth = 4; g.stroke();
+    g.fillStyle = '#9ef0b5'; g.font = `700 40px ${FONT}`; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText(p.title, 40, 30);
+    g.fillStyle = '#ffffff'; g.font = `500 36px ${FONT}`;
+    const maxW = W - 80, words = p.text.split(' '), lines = []; let cur = '';
+    for (const w of words) { const t = cur ? cur + ' ' + w : w; if (g.measureText(t).width > maxW) { lines.push(cur); cur = w; } else cur = t; }
+    if (cur) lines.push(cur);
+    lines.slice(0, 4).forEach((l, i) => g.fillText(l, 40, 88 + i * 44));
+    this.btn = null;
+    if (p.button) {
+      const bw = 340, bh = 84, bx = W - bw - 36, by = H - bh - 28;
+      g.fillStyle = this.hover ? '#4f8fd8' : '#3a78c2'; roundRect(g, bx, by, bw, bh, 26); g.fill();
+      if (this.hover) { g.strokeStyle = '#bfe3ff'; g.lineWidth = 5; g.stroke(); }
+      g.fillStyle = '#fff'; g.font = `700 40px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(p.button, bx + bw / 2, by + bh / 2 + 2);
+      this.btn = [bx, by, bw, bh];
+    } else if (p.target) {
+      g.fillStyle = '#ffd34d'; g.font = `600 30px ${FONT}`; g.textAlign = 'right'; g.textBaseline = 'alphabetic'; g.fillText('\u2192 point at the glowing object', W - 40, H - 40);
+    }
+    this.commit();
+  }
+  hitButton(uv) { if (!this.btn) return false; const px = uv.x * this.pw, py = (1 - uv.y) * this.ph; const [x, y, w, h] = this.btn; return px >= x - 10 && px <= x + w + 10 && py >= y - 10 && py <= y + h + 10; }
+  setHover(h) { if (h !== this.hover) { this.hover = h; this.draw(); } }
 }
