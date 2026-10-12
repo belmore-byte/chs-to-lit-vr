@@ -3,68 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CHS to LIT Flight Simulator - WebXR for Meta Quest 2</title>
+  <title>Calm Flight: CHS → CLT → LIT (WebXR passenger flight)</title>
   <style>
-    body { margin: 0; overflow: hidden; background: #000; font-family: Arial, sans-serif; }
-    #info {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      color: white;
-      background: rgba(0,0,0,0.7);
-      padding: 15px;
-      border-radius: 8px;
-      max-width: 400px;
-      z-index: 100;
-    }
-    #enter-vr {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 15px 30px;
-      font-size: 18px;
-      background: #0066cc;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      z-index: 100;
-    }
-    #enter-vr:hover { background: #0055aa; }
-    #status {
-      position: absolute;
-      bottom: 80px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: white;
-      background: rgba(0,0,0,0.7);
-      padding: 10px 20px;
-      border-radius: 8px;
-      text-align: center;
-      z-index: 100;
-    }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0f16; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    canvas { display: block; cursor: grab; }
+    #overlay { position: absolute; top: 18px; left: 18px; max-width: 430px; color: #e8f0fb; background: rgba(10,16,28,0.86);
+      border: 1px solid rgba(140,180,230,0.35); border-radius: 14px; padding: 18px 20px; z-index: 10; line-height: 1.45; }
+    #overlay.hidden { display: none; }
+    #overlay h1 { font-size: 20px; margin: 0 0 6px; }
+    #overlay p { margin: 6px 0; font-size: 14px; color: #c8d6ea; }
+    #overlay kbd { background: #26324a; border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+    #startBtn { margin-top: 10px; padding: 10px 18px; font-size: 15px; border: 0; border-radius: 8px; background: #3a78c2; color: #fff; cursor: pointer; }
+    #startBtn:hover { background: #2f66a8; }
+    #help { position: absolute; right: 12px; bottom: 12px; color: #8ea3bf; font-size: 12px; z-index: 5; background: rgba(10,16,28,0.6); padding: 6px 10px; border-radius: 8px; }
   </style>
 </head>
 <body>
-  <div id="info">
-    <h2>CHS → CLT → LIT Flight Experience</h2>
-    <p>First-person simulation for Meta Quest 2 (WebXR).</p>
-    <p>Arrive at Charleston International, check in, security, board, fly via Charlotte to Little Rock, AR.</p>
-    <p>Use controllers or mouse to interact. Press trigger/button to progress when prompted.</p>
-    <p>Best experienced in VR mode on Quest browser.</p>
+  <div id="overlay">
+    <h1>Calm Flight · CHS → CLT → LIT</h1>
+    <p>A gentle, realistic passenger flight for exposure practice. You sit in a window seat; the plane taxis, takes off, climbs through clouds, cruises, and lands, with cabin announcements and calm tips. Fictional, unbranded airline.</p>
+    <p><b>Quest:</b> press <b>Enter VR</b> (sit down first). Point a controller at the menu on your right and pull the trigger. Thumbstick = snap turn, grip = hide/show menu.</p>
+    <p><b>Desktop:</b> drag to look, click menu items. <kbd>Space</kbd> pause · <kbd>N</kbd> next phase · <kbd>T</kbd> turbulence · <kbd>S</kbd> shade · <kbd>B</kbd> breathing · <kbd>L</kbd> lean to window · <kbd>1</kbd>/<kbd>2</kbd> leg</p>
+    <button id="startBtn">Start on desktop</button>
   </div>
-  <div id="status">Loading experience...</div>
-  <button id="enter-vr">Enter VR</button>
-
+  <div id="help">Drag to look · L: lean to window · Space: pause</div>
   <script type="importmap">
   {
     "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
     }
   }
   </script>
-  <script type="module" src="app.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
