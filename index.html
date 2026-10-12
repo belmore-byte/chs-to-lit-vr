@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CHS to LIT Flight Simulator - WebXR for Meta Quest 2</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; font-family: Arial, sans-serif; }
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      background: rgba(0,0,0,0.7);
+      padding: 15px;
+      border-radius: 8px;
+      max-width: 400px;
+      z-index: 100;
+    }
+    #enter-vr {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 15px 30px;
+      font-size: 18px;
+      background: #0066cc;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 100;
+    }
+    #enter-vr:hover { background: #0055aa; }
+    #status {
+      position: absolute;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      background: rgba(0,0,0,0.7);
+      padding: 10px 20px;
+      border-radius: 8px;
+      text-align: center;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">
+    <h2>CHS → CLT → LIT Flight Experience</h2>
+    <p>First-person simulation for Meta Quest 2 (WebXR).</p>
+    <p>Arrive at Charleston International, check in, security, board, fly via Charlotte to Little Rock, AR.</p>
+    <p>Use controllers or mouse to interact. Press trigger/button to progress when prompted.</p>
+    <p>Best experienced in VR mode on Quest browser.</p>
+  </div>
+  <div id="status">Loading experience...</div>
+  <button id="enter-vr">Enter VR</button>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
